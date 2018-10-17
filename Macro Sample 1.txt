@@ -1,0 +1,85 @@
+Attribute VB_Name = "Module1"
+Sub collate_all()
+
+Dim i As Integer
+Dim rowCount, appendRow As Long
+Dim source_path, f_name, pwd As String
+Dim src_WorkBk, Dest_wkbk As Workbook
+Dim Dest_sht, sht As Worksheet
+Dim hdr_store As Variant
+
+Set Dest_wkbk = Workbooks.Add
+Set Dest_sht = Dest_wkbk.Worksheets(1)
+
+Application.ScreenUpdating = False
+Application.EnableEvents = False
+
+source_path = InputBox("Please enter folder location ending in '\', e.g. C:\users\A\Documents\Data\", _
+"Folder location of files", "E:\documents\kisaan_data\")
+pwd = InputBox("Please enter password to unprotect your worksheets, leave blank otherwise.", "Password", "")
+
+f_name = Dir(source_path & "*.xl*")
+
+appendRow = 2
+flag = 1
+
+Do While f_name <> ""
+
+    Set src_WorkBk = Workbooks.Open(Filename:=source_path & f_name, UpdateLinks:=False, ReadOnly:=False)
+    
+    src_WorkBk.Activate
+    Set sht = src_WorkBk.Sheets(1)
+    sht.Activate
+    sht.Unprotect (pwd)
+    
+    If sht.FilterMode Then
+    sht.ShowAllData
+    End If
+    
+    'Header insertion for the first time
+    If flag = 1 Then
+    'static selection code, indicate your last column below.
+    'hdr_store = sht.Range("A1:T1").Value2
+    'Use the below line if you feel the need for dynamic range.
+    hdr_store = sht.Range(Cells(1, 1), Cells(1, sht.Range("A1").CurrentRegion.Columns.Count)).Value2
+    Dest_sht.Range("A1").Value2 = "Received From"
+    For i = 1 To UBound(hdr_store, 2)
+    Dest_sht.Cells(1, i + 1) = hdr_store(1, i)
+    Next i
+    flag = 0
+    End If
+    
+    rowCount = sht.Range("A1").CurrentRegion.Rows.Count
+    
+    sht.Activate
+    'Static Selection code
+    'sht.Range(Cells(2, 1), Cells(rowCount, 29)).Select
+    'Use the below line if you feel the need for dynamic range.
+    sht.Range(Cells(2, 1), Cells(rowCount, sht.Range("A1").End(xlToRight).Column)).Select
+    'sht.Range("A1").CurrentRegion.Select
+    Selection.Copy
+    
+    Dest_sht.Activate
+    Dest_sht.Range("B" & appendRow).Select
+    Selection.PasteSpecial Paste:=xlPasteValues, Operation:=xlNone, SkipBlanks _
+        :=False, Transpose:=False
+    Application.CutCopyMode = False
+    
+    Dest_sht.Range(Cells(appendRow, 1), Cells(appendRow + rowCount - 1, 1)).Value2 = sht.Name
+    
+    src_WorkBk.Close SaveChanges:=False
+    Set src_WorkBk = Nothing
+    appendRow = appendRow + rowCount - 1
+    f_name = Dir()
+Loop
+    
+    'Dest_sht.Activate
+    'Rows("1:1").Select
+    'Selection.Insert Shift:=xlDown, CopyOrigin:=xlFormatFromLeftOrAbove
+
+Dest_wkbk.SaveAs Filename:=source_path & "collated_Sheet_" & _
+Format(Date, "dd.mm.yy_") & Format(Time, "hh.mm") & ".xlsx"
+Application.Dialogs(xlDialogSaveAs).Show
+'Dest_wkbk.Close
+
+End Sub
